@@ -6,7 +6,7 @@ import imutils
 
 def main():
     #opening image
-    original_image = cv2.imread("./images/03.jpg")
+    original_image = cv2.imread("./images/033.jpg")
 
     #displaying image file
     #cv2.imshow("original_image", original_image)
@@ -38,12 +38,13 @@ def main():
     
     #outling edges on image
     four_points = getCornerPoints(no_gap_image)
-    print([four_points])
     cv2.drawContours(resized_image, [four_points], -1, (255, 0, 0), 3)
-   # cv2.imshow("outline_image", resized_image)
+    #cv2.imshow("outline_image", resized_image)
 
     #cropped image
-    cropped_image = imutils.perspective.four_point_transform(resized_image, four_points)
+    ratio = original_image.shape[0] / resized_image.shape[0]
+    four_points_for_original = (ratio * four_points).astype(int)
+    cropped_image = imutils.perspective.four_point_transform(original_image, four_points_for_original)
     cv2.imshow("Cropped_image", cropped_image)
 
 
@@ -57,7 +58,7 @@ def resize_image(image, new_width):
     old_height, old_width, channel = image.shape
     aspect_ratio = old_height / old_width
     new_height = int(aspect_ratio * new_width)
-    image_new_size = (new_height, new_width)
+    image_new_size = (new_width, new_height)
 
     image = cv2.resize(image, image_new_size)
     return image
