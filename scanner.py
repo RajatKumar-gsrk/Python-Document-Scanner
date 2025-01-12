@@ -4,42 +4,20 @@ import cv2
 import matplotlib.pyplot as mp
 import imutils
 
-def main():
+def main():#pipeline: open image -> resize image -> process image -> locate corners -> crop points -> save image
     #opening image
     original_image = cv2.imread("./images/033.jpg")
-
     #displaying image file
-    #cv2.imshow("original_image", original_image)
+    cv2.imshow("original_image", original_image)
 
     #resized image
     resized_image = resize_image(original_image, 1000)
-    #cv2.imshow("resized_image", resized_image)
 
-    #turned graycale
-    gray_image = cv2.cvtColor(resized_image, cv2.COLOR_BGR2GRAY)
-   # cv2.imshow("gray_image", gray_image)
-
-    #blurred
-    blured_image = cv2.GaussianBlur(gray_image,(5, 5), 0)
-    #cv2.imshow("blured_image", blured_image)
-
-    #detecting edges
-    edge_detected_image = cv2.Canny(blured_image, 50, 200)
-   # cv2.imshow("EDGE_image", edge_detected_image)
-
-    #broadning edges
-    seed = np.ones((4, 4), np.uint8)
-    dialated_image = cv2.dilate(edge_detected_image, seed)
-   # cv2.imshow("dialated_image", dialated_image)
-
-    #closing small gaps
-    no_gap_image = cv2.morphologyEx(dialated_image, cv2.MORPH_CLOSE, seed)
-   # cv2.imshow("no_gap_image", no_gap_image)
-    
+    processed_image = image_processing(resized_image)
     #outling edges on image
-    four_points = getCornerPoints(no_gap_image)
+    four_points = getCornerPoints(processed_image)
     cv2.drawContours(resized_image, [four_points], -1, (255, 0, 0), 3)
-    #cv2.imshow("outline_image", resized_image)
+    cv2.imshow("outline_image", resized_image)
 
     #cropped image
     ratio = original_image.shape[0] / resized_image.shape[0]
@@ -47,7 +25,8 @@ def main():
     cropped_image = imutils.perspective.four_point_transform(original_image, four_points_for_original)
     cv2.imshow("Cropped_image", cropped_image)
 
-
+    #saving an image
+    cv2.imwrite(".\\output_images\\cropped_image.png", cropped_image)
 
     #closing all windows
     cv2.waitKey(0)
@@ -63,6 +42,24 @@ def resize_image(image, new_width):
     image = cv2.resize(image, image_new_size)
     return image
 
+def image_processing(resized_image):
+    #turned graycale
+    gray_image = cv2.cvtColor(resized_image, cv2.COLOR_BGR2GRAY)
+
+    #blurred
+    blured_image = cv2.GaussianBlur(gray_image,(5, 5), 0)
+
+    #detecting edges
+    edge_detected_image = cv2.Canny(blured_image, 50, 200)
+
+    #broadning edges
+    seed = np.ones((4, 4), np.uint8)
+    dialated_image = cv2.dilate(edge_detected_image, seed)
+
+    #closing small gaps
+    no_gap_image = cv2.morphologyEx(dialated_image, cv2.MORPH_CLOSE, seed)
+
+    return no_gap_image
 
 def getCornerPoints(image):
     contours, hierarchy = cv2.findContours(image, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
@@ -73,7 +70,7 @@ def getCornerPoints(image):
         perimeter = cv2.arcLength(contour, True)
         approx = cv2.approxPolyDP(contour, 0.01 * perimeter, True)
 
-        if len(approx) == 4: #found largest closed are with 4 corners
+        if len(approx) == 4: #found largest closed area with 4 corners
             return np.squeeze(approx)
 
 if __name__ == "__main__":
