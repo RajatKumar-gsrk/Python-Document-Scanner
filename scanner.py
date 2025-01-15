@@ -3,15 +3,16 @@ import numpy as np
 import cv2
 import matplotlib.pyplot as mp
 import imutils
+import pathlib
 
 def main():#pipeline: open image -> resize image -> process image -> locate corners -> crop points -> save image
     #opening images
-    image_paths = take_image_paths()
+    image_paths = take_image_paths("./input_images")
     image_names = find_names(image_paths)
     original_images = read_images_from_path(image_paths)
 
     #resized images
-    resized_images = resize_images(original_images, 1000)
+    resized_images = resize_images(original_images, 500)
 
     #processing the images
     processed_images = image_processing(resized_images)
@@ -19,13 +20,13 @@ def main():#pipeline: open image -> resize image -> process image -> locate corn
     #outling edges on image
     four_points_list = getCornerPoints(processed_images)
     add_outlines(four_points_list, resized_images)
-    draw_images(resized_images, "outlined_image")
+    draw_images(resized_images, image_names, "outlined_image")
 
     #cropped image
     ratios = find_ratios(original_images, resized_images)
     four_points_for_original_list = shift_points(ratios, four_points_list)
     cropped_images = crop_images(original_images, four_points_for_original_list)
-    draw_images(cropped_images, "Cropped_image")
+    draw_images(cropped_images, image_names, "Cropped_image")
 
     #saving images
     save_images(".\\output_images\\",image_names, cropped_images)
@@ -35,21 +36,21 @@ def main():#pipeline: open image -> resize image -> process image -> locate corn
     cv2.destroyAllWindows()
 
 
-#asks user for image paths
-def take_image_paths():
-    print("Enter (CORRECT) paths for each image on new line, type 'end' to stop giving input: ")
-    paths = []
-    while True:
-        x = input()
-        if x == 'end':
-            break
-        paths.append(x)
-    return paths
+#take directory as input and provides paths all for images inside
+def take_image_paths(input_folder):
+    input("Put all your Images in input_images folder and press ENTER")
+
+    image_paths = []
+    for file in pathlib.Path(input_folder).rglob("*"):
+        if file.is_file():#skips directories, includes files only
+            image_paths.append(str(file))
+
+    return image_paths
 
 def find_names(image_paths):
     names = []
     for path in image_paths:
-        name = path.split("/")[-1]
+        name = path.split("\\")[-1]
         names.append(name)
     return names
 
@@ -61,11 +62,9 @@ def read_images_from_path(image_paths):
     return images
 
 #draws image in window
-def draw_images(images, window_name = "image"):
-    i = 0
-    for image in images:
-        cv2.imshow(f"{window_name} {i}", image)
-        i += 1
+def draw_images(images, names, window_name = "image"):
+    for i in range(len(images)):
+        cv2.imshow(f"{window_name} {names[i]}", images[i])
 
 
 #image resizing function
@@ -73,7 +72,7 @@ def resize_images(images, new_width):
     resized_images = []
     for image in images:
         old_height, old_width, channel = image.shape
-        aspect_ratio = old_height / old_width
+        aspect_ratio = find_ratio(old_height , old_width)
         new_height = int(aspect_ratio * new_width)
         image_new_size = (new_width, new_height)
 
@@ -108,7 +107,7 @@ def image_processing(resized_images):#grayscale -> blur -> edge detection -> giv
 def getCornerPoints(images):#find contour -> sort by area -> return largest are with 4 points
     four_points_list = []
     for image in images:
-        contours, hierarchy = cv2.findContours(image, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+        contours = cv2.findContours(image, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)[0] #ignore heirarchies
         contours = sorted(contours, key = cv2.contourArea, reverse = True) #puts largest area first
 
         for contour in contours:
@@ -128,14 +127,18 @@ def add_outlines(four_points_list, resized_images):
         cv2.drawContours(resized_images[i], [four_points], -1, (255, 0, 0), 3)
         i += 1
 
-#finds resolution ratio between 2 images
+#finds resolution ratio for all images
 def find_ratios(original_images, resized_images):
     ratios = []
     for i in range(len(original_images)):
-        ratio = original_images[i].shape[0]/resized_images[i].shape[0]
+        ratio = find_ratio(original_images[i].shape[0], resized_images[i].shape[0])
         ratios.append(ratio)
     
     return ratios
+
+#calculates ratio n1/n2
+def find_ratio(num1, num2):
+    return num1/num2
 
 #shift ponits by ratios
 def shift_points(ratios, four_points_list):
