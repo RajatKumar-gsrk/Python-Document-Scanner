@@ -1,13 +1,13 @@
 import imutils.perspective
-import numpy as np
+import numpy
 import cv2
-import matplotlib.pyplot as mp
 import imutils
 import pathlib
+from PIL import Image
 
 def main():#pipeline: open image -> resize image -> process image -> locate corners -> crop points -> save image
     #opening images
-    image_paths = take_image_paths("./input_images")
+    image_paths = take_image_paths("./input")
     image_names = find_names(image_paths)
     original_images = read_images_from_path(image_paths)
 
@@ -20,16 +20,23 @@ def main():#pipeline: open image -> resize image -> process image -> locate corn
     #outling edges on image
     four_points_list = getCornerPoints(processed_images)
     add_outlines(four_points_list, resized_images)
-    draw_images(resized_images, image_names, "outlined_image")
+    #draw_images(resized_images, image_names, "outlined_image")
 
     #cropped image
     ratios = find_ratios(original_images, resized_images)
     four_points_for_original_list = shift_points(ratios, four_points_list)
     cropped_images = crop_images(original_images, four_points_for_original_list)
-    draw_images(cropped_images, image_names, "Cropped_image")
+    #draw_images(cropped_images, image_names, "Cropped_image")
 
     #saving images
-    save_images(".\\output_images\\",image_names, cropped_images)
+    print("Enter 1: to save as images")
+    print("Enter 2: to save as pdf")
+    user_choice = int(input())
+
+    if user_choice == 1:
+        save_images(".\\output\\",image_names, cropped_images)
+    elif user_choice == 2:    
+        save_to_pdf(".\\output\\.output.pdf", cropped_images)
 
     #closing all windows
     cv2.waitKey(0)
@@ -42,8 +49,9 @@ def take_image_paths(input_folder):
 
     image_paths = []
     for file in pathlib.Path(input_folder).rglob("*"):
-        if file.is_file():#skips directories, includes files only
-            image_paths.append(str(file))
+        if file.is_file():#skips directories, includes jpg/jpeg/png files only
+            if str(file).endswith(".jpg") or str(file).endswith(".jpeg") or str(file).endswith(".png"):
+                image_paths.append(str(file))
 
     return image_paths
 
@@ -71,7 +79,7 @@ def draw_images(images, names, window_name = "image"):
 def resize_images(images, new_width):
     resized_images = []
     for image in images:
-        old_height, old_width, channel = image.shape
+        old_height, old_width = image.shape[0], image.shape[1]
         aspect_ratio = find_ratio(old_height , old_width)
         new_height = int(aspect_ratio * new_width)
         image_new_size = (new_width, new_height)
@@ -94,7 +102,7 @@ def image_processing(resized_images):#grayscale -> blur -> edge detection -> giv
         edge_detected_image = cv2.Canny(blured_image, 50, 200)
 
         #broadning edges
-        seed = np.ones((4, 4), np.uint8)
+        seed = numpy.ones((4, 4), numpy.uint8)
         dialated_image = cv2.dilate(edge_detected_image, seed)
 
         #closing small gaps
@@ -115,7 +123,7 @@ def getCornerPoints(images):#find contour -> sort by area -> return largest are 
             approx = cv2.approxPolyDP(contour, 0.01 * perimeter, True)
 
             if len(approx) == 4: #found largest closed area with 4 corners
-                four_points_list.append(np.squeeze(approx))
+                four_points_list.append(numpy.squeeze(approx))
                 break
     
     return four_points_list
@@ -163,6 +171,14 @@ def save_images(path, names,cropped_images):
         cv2.imwrite(f"{path}{names[i]}", cropped_images[i])
         i += 1
         
+def save_to_pdf(pdf_path, cv2_image_list):
+    cv2_image_list = resize_images(cv2_image_list, 1920)
+    pil_images = []
+    for image in cv2_image_list:
+        pil_image = Image.fromarray(image) #cv2 image is in form of array need to convert to PIL image format
+        pil_images.append(pil_image)
+    
+    pil_images[0].save(pdf_path, "PDF", save_all = True, resolution = 100, append_images = pil_images[1:]) #methods from PIL library
 
 if __name__ == "__main__":
     main()
