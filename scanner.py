@@ -1,7 +1,6 @@
 import imutils.perspective
 import numpy
 import cv2
-import imutils
 import pathlib
 from PIL import Image
 
@@ -50,7 +49,7 @@ def take_image_paths(input_folder):
     image_paths = []
     for file in pathlib.Path(input_folder).rglob("*"):
         if file.is_file():#skips directories, includes jpg/jpeg/png files only
-            if str(file).endswith(".jpg") or str(file).endswith(".jpeg") or str(file).endswith(".png"):
+            if str(file).endswith(".jpg") or str(file).endswith(".jpeg"):
                 image_paths.append(str(file))
 
     return image_paths
@@ -79,7 +78,7 @@ def draw_images(images, names, window_name = "image"):
 def resize_images(images, new_width):
     resized_images = []
     for image in images:
-        old_height, old_width = image.shape[0], image.shape[1]
+        old_height, old_width = get_height(image), get_width(image)
         aspect_ratio = find_ratio(old_height , old_width)
         new_height = int(aspect_ratio * new_width)
         image_new_size = (new_width, new_height)
@@ -88,30 +87,43 @@ def resize_images(images, new_width):
         resized_images.append(image)
     return resized_images
 
+def get_height(image):
+    return image.shape[0]
+
+def get_width(image):
+    return image.shape[1]
+
 #process the image
 def image_processing(resized_images):#grayscale -> blur -> edge detection -> give room for error -> close small gaps ->return
     processed_images = []
     for resized_image in resized_images:
         #turned graycale
-        gray_image = cv2.cvtColor(resized_image, cv2.COLOR_BGR2GRAY)
-
+        gray_image = image_to_grayscale(resized_image)
         #blurred
-        blured_image = cv2.GaussianBlur(gray_image,(5, 5), 0)
-
+        blured_image = image_to_blur(gray_image)
         #detecting edges
-        edge_detected_image = cv2.Canny(blured_image, 50, 200)
-
+        edge_detected_image = image_to_canny(blured_image)
         #broadning edges
         seed = numpy.ones((4, 4), numpy.uint8)
         dialated_image = cv2.dilate(edge_detected_image, seed)
-
         #closing small gaps
         no_gap_image = cv2.morphologyEx(dialated_image, cv2.MORPH_CLOSE, seed)
         processed_images.append(no_gap_image)
 
     return processed_images
 
-#returns corner points for image
+#turn cv2 image to grayscale
+def image_to_grayscale(image):
+    return cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+#apply blur to cv2 image
+def image_to_blur(image):
+    return cv2.GaussianBlur(image,(5, 5), 0)
+
+def image_to_canny(image):
+    return cv2.Canny(image, 50, 200)
+
+#returns corner points for cv2 image
 def getCornerPoints(images):#find contour -> sort by area -> return largest are with 4 points
     four_points_list = []
     for image in images:
@@ -139,7 +151,7 @@ def add_outlines(four_points_list, resized_images):
 def find_ratios(original_images, resized_images):
     ratios = []
     for i in range(len(original_images)):
-        ratio = find_ratio(original_images[i].shape[0], resized_images[i].shape[0])
+        ratio = find_ratio(get_height(original_images[i]), get_height(resized_images[i]))
         ratios.append(ratio)
     
     return ratios
