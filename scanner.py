@@ -8,7 +8,7 @@ def main():#pipeline: open image -> resize image -> process image -> locate corn
     #opening images
     image_paths = take_image_paths("./input")
     image_names = find_names(image_paths)
-    original_images = read_images_from_path(image_paths)
+    original_images = read_images_from_path(image_paths)#BGR format by default
 
     #resized images
     resized_images = resize_images(original_images, 500)
@@ -187,7 +187,8 @@ def save_to_pdf(pdf_path, cv2_image_list):
     cv2_image_list = resize_images(cv2_image_list, 1920)
     pil_images = []
     for image in cv2_image_list:
-        pil_image = Image.fromarray(image) #cv2 image is in form of array need to convert to PIL image format
+        #cv2 images are in BGR format
+        pil_image = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB)) #cv2 image is in form of array need to convert to PIL image format
         pil_images.append(pil_image)
     
     pil_images[0].save(pdf_path, "PDF", save_all = True, resolution = 100, append_images = pil_images[1:]) #methods from PIL library
